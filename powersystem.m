@@ -5,13 +5,16 @@ classdef powersystem
     properties
         systembusses = powerbus.empty;
         Ybus;
+        runnum;
     end
     
     methods
         function obj = powersystem(Busses)
             obj.systembusses = Busses;
+            obj.runnum = 0;
         end
         function obj = calculate(obj)
+            obj.runnum = obj.runnum + 1;
             for b = 1:length(obj.systembusses)
                 switch obj.systembusses(b).type
                     case 'PV'
@@ -22,6 +25,11 @@ classdef powersystem
                     case 'PQ'
                         I = Iarray(obj,b);
                         obj.systembusses(b).V = (1/obj.Ybus(b,b)*((obj.systembusses(b).P-1i*obj.systembusses(b).Q)/conj(obj.systembusses(b).V)-I(b,1)));
+                    case 'Ref'
+                        I = Iarray(obj,-1);
+                        S = conj(obj.systembusses(b).V)*I(b,1);
+                        obj.systembusses(b).P = real(S);
+                        obj.systembusses(b).Q = imag(S);
                 end
             end
         end
@@ -38,7 +46,34 @@ classdef powersystem
                 end
             end
         end
-                
+        function maxerror = error(obj,prev)
+            error = zeros(2*length(obj.systembusses),1);
+            for b = 1:length(obj.systembusses)
+                error(b) = (abs(obj.systembusses(b).V) - abs(prev.systembusses(b).V))/abs(prev.systembusses(b).V);
+                error(b+1) = (angle(obj.systembusses(b).V) - angle(prev.systembusses(b).V))/angle(prev.systembusses(b).V);
+            end
+            maxerror = max(error);
+        end       
+        function obj = solve(obj,desirederror)
+            prev = obj;
+            obj = obj.calculate;
+            prev = obj;
+            obj = obj.calculate;
+            while obj.error(prev)*100.>(100.-abs(desirederror))
+                prev = obj;
+                obj = obj.calculate;
+            end
+        end
+        function displaysystem(obj,runs)
+            s = sprintf('After %d Runs:',obj.runnum);
+            if runs==1
+                disp(s);
+            end
+            for b = 1:length(obj.systembusses)
+                s = sprintf('Bus %d (%s Bus): V=%0.3f@%0.3f%c Vpu, P=%0.3f Wpu, Q= %0.3f VARpu',b,obj.systembusses(b).type,abs(obj.systembusses(b).V),angle(obj.systembusses(b).V)/(2*pi)*360,char(176),obj.systembusses(b).P,obj.systembusses(b).Q);
+                disp(s);
+            end
+        end
     end
     
 end
