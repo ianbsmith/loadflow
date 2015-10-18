@@ -6,12 +6,21 @@ classdef powersystem
         systembusses = powerbus.empty;
         Ybus;
         runnum;
+        systemTLs = powerTL.empty;
     end
     
     methods
-        function obj = powersystem(Busses)
+        function obj = powersystem(Busses,TLs)
             obj.systembusses = Busses;
+            obj.systemTLs = TLs;
+            obj = obj.generateYbus;
             obj.runnum = 0;
+        end
+        function obj = generateYbus(obj)
+            obj.
+            for i = 1:length(obj.systemTLs)
+                obj.Ybus(obj.systemTLs(i).FromBus,obj.systemTLs(i).ToBus) = obj.systemTLs(i).Y;
+            end
         end
         function obj = calculate(obj)
             obj.runnum = obj.runnum + 1;
@@ -84,10 +93,12 @@ classdef powersystem
                         I = Iarray(obj,b);
                         obj.systembusses(b).V = abs(obj.systembusses(b).V)*exp(1i*angle(1/obj.Ybus(b,b)*((obj.systembusses(b).P-1i*obj.systembusses(b).Q)/conj(obj.systembusses(b).V)-I(b,1))));
                     case 'PQ'
+                        I = Iarray(obj,0);
+                        NewY = j*imag(I(b,1)/obj.systembusses(b).V);
+                        obj.Ybus(b,b) = -1*obj.systembusses(b).VARCompY + NewY + obj.Ybus(b,b);
+                        obj.systembusses(b).VARCompY = NewY;
                         I = Iarray(obj,b);
-                        NewY = 
-                        obj.systembusses(b).VARCompY = -1*obj.systembusses(b).VARCompY + 
-                        obj.systembusses(b).V = (1/obj.Ybus(b,b)*((obj.systembusses(b).P-1i*obj.systembusses(b).Q)/conj(obj.systembusses(b).V)-I(b,1)));
+                        obj.systembusses(b).V = (1/obj.Ybus(b,b)*((obj.systembusses(b).P-(1i*(obj.systembusses(b).Q)))/conj(obj.systembusses(b).V)-I(b,1)));
                     case 'Ref'
                         I = Iarray(obj,-1);
                         S = conj(obj.systembusses(b).V)*I(b,1);
@@ -100,10 +111,26 @@ classdef powersystem
             prev = obj;
             obj = obj.calculate;
             prev = obj;
-            obj = obj.calculatecompenstated;
+            obj = obj.calculate;
+            while obj.error(prev)*100.>(100.-abs(desirederror))
+                prev = obj;
+                obj = obj.calculate;
+            end
+            prev = obj;
+            obj = obj.calculatecompensated;
+            prev = obj;
+            obj = obj.calculatecompensated;
             while obj.error(prev)*100.>(100.-abs(desirederror))
                 prev = obj;
                 obj = obj.calculatecompensated;
+            end
+                        prev = obj;
+            obj = obj.calculate;
+            prev = obj;
+            obj = obj.calculate;
+            while obj.error(prev)*100.>(100.-abs(desirederror))
+                prev = obj;
+                obj = obj.calculate;
             end
         end
     end

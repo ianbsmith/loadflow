@@ -6,12 +6,24 @@ classdef powersystem
         systembusses = powerbus.empty;
         Ybus;
         runnum;
+        systemTLs = powerTL.empty;
     end
     
     methods
-        function obj = powersystem(Busses)
+        function obj = powersystem(Busses,TLs)
             obj.systembusses = Busses;
+            obj.systemTLs = TLs;
+            obj = obj.generateYbus;
             obj.runnum = 0;
+        end
+        function obj = generateYbus(obj)
+            obj.Ybus = zeros(length(obj.systembusses),length(obj.systembusses));
+            for i = 1:length(obj.systemTLs)
+                obj.Ybus(obj.systemTLs(i).FromBus,obj.systemTLs(i).ToBus) = obj.Ybus(obj.systemTLs(i).FromBus,obj.systemTLs(i).ToBus) - (obj.systemTLs(i).Y);
+                obj.Ybus(obj.systemTLs(i).ToBus,obj.systemTLs(i).FromBus) = obj.Ybus(obj.systemTLs(i).ToBus,obj.systemTLs(i).FromBus) - (obj.systemTLs(i).Y);
+                obj.Ybus(obj.systemTLs(i).ToBus,obj.systemTLs(i).ToBus) = obj.Ybus(obj.systemTLs(i).ToBus,obj.systemTLs(i).ToBus) + (obj.systemTLs(i).Y);
+                obj.Ybus(obj.systemTLs(i).FromBus,obj.systemTLs(i).FromBus) = obj.Ybus(obj.systemTLs(i).FromBus,obj.systemTLs(i).FromBus) + (obj.systemTLs(i).Y);
+            end
         end
         function obj = calculate(obj)
             obj.runnum = obj.runnum + 1;
