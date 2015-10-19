@@ -76,17 +76,20 @@ classdef powersystem
                 obj = obj.calculate;
             end
         end
-        function displaysystem(obj,runs)
+        function displaysystembusses(obj,runs)
             s = sprintf('After %d Runs:',obj.runnum);
             if runs==1
                 disp(s);
             end
             for b = 1:length(obj.systembusses)
                 s = sprintf('Bus %d (%s Bus): V=%0.3f@%0.3f%c Vpu, P=%0.3f Wpu, Q= %0.3f VARpu',b,obj.systembusses(b).type,abs(obj.systembusses(b).V),angle(obj.systembusses(b).V)/(2*pi)*360,char(176),obj.systembusses(b).P,obj.systembusses(b).Q);
+                if obj.systembusses(b).VARCompensated
+                    s = strcat(s,sprintf(', Static VAR Compensated, X = j*%0.4f Ohms(pu)',imag(1/(obj.systembusses(b).VARComp))));
+                end
                 disp(s);
             end
         end
-        function obj = calculatecompensated(obj)
+        function obj = calculatecompensated(obj,solvedsys)
             obj.runnum = obj.runnum + 1;
             for b = 1:length(obj.systembusses)
                 switch obj.systembusses(b).type
@@ -96,10 +99,13 @@ classdef powersystem
                         I = Iarray(obj,b);
                         obj.systembusses(b).V = abs(obj.systembusses(b).V)*exp(1i*angle(1/obj.Ybus(b,b)*((obj.systembusses(b).P-1i*obj.systembusses(b).Q)/conj(obj.systembusses(b).V)-I(b,1))));
                     case 'PQ'
-                        I = Iarray(obj,0);
-                        NewY = j*imag(I(b,1)/obj.systembusses(b).V);
-                        obj.Ybus(b,b) = -1*obj.systembusses(b).VARCompY + NewY + obj.Ybus(b,b);
-                        obj.systembusses(b).VARCompY = NewY;
+                        if abs(solvedsys.systembusses(b).V)<.96
+                            obj.systembusses(b).VARCompensated = 1; 
+                            I = Iarray(obj,0);
+                            NewY = j*imag(I(b,1)/obj.systembusses(b).V);
+                            obj.Ybus(b,b) = -1*obj.systembusses(b).VARComp + NewY + obj.Ybus(b,b);
+                            obj.systembusses(b).VARComp = NewY;
+                        end
                         I = Iarray(obj,b);
                         obj.systembusses(b).V = (1/obj.Ybus(b,b)*((obj.systembusses(b).P-(1i*(obj.systembusses(b).Q)))/conj(obj.systembusses(b).V)-I(b,1)));
                     case 'Ref'
@@ -119,15 +125,16 @@ classdef powersystem
                 prev = obj;
                 obj = obj.calculate;
             end
+            solvedregular = obj;
             prev = obj;
-            obj = obj.calculatecompensated;
+            obj = obj.calculatecompensated(solvedregular);
             prev = obj;
-            obj = obj.calculatecompensated;
+            obj = obj.calculatecompensated(solvedregular);
             while obj.error(prev)*100.>(100.-abs(desirederror))
                 prev = obj;
-                obj = obj.calculatecompensated;
+                obj = obj.calculatecompensated(solvedregular);
             end
-                        prev = obj;
+            prev = obj;
             obj = obj.calculate;
             prev = obj;
             obj = obj.calculate;
