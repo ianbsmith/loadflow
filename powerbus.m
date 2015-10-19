@@ -8,7 +8,7 @@ classdef powerbus
         Q;
         V;
         VARCompensated;
-        VARComp;
+        VARCompY;
     end
     
     methods
@@ -25,7 +25,7 @@ classdef powerbus
             obj.V = InV;
             obj = obj.initialguess;
             obj.VARCompensated = 0;
-            obj.VARComp = 0;
+            obj.VARCompY = 0;
             
            
         end
