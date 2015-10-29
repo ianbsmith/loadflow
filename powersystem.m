@@ -77,7 +77,7 @@ classdef powersystem
                 error(b) = (abs(obj.systembusses(b).V) - abs(prev.systembusses(b).V))/abs(prev.systembusses(b).V);
                 error(b+1) = (angle(obj.systembusses(b).V) - angle(prev.systembusses(b).V))/angle(prev.systembusses(b).V);
             end
-            maxerror = abs(max(error));
+            maxerror = max(error);
         end
         function minvoltage = minvoltage(obj)
             voltage = zeros(length(obj.systembusses),1);
@@ -86,16 +86,36 @@ classdef powersystem
             end
             minvoltage = min(voltage);
         end 
-        function obj = solveloadflow(obj,desirederror)
+        function obj = solveloadflowworker(obj,desirederror)
             prev = obj;
             obj = obj.calculateloadflow;
             prev = obj;
             obj = obj.calculateloadflow;
-            while obj.error(prev)*100.>(100.-abs(desirederror))
+            while obj.error(prev)>(100.-abs(desirederror)) && isfinite(obj.error(prev)) && obj.error(prev)>0
+                prev = obj;
+                obj = obj.calculateloadflow;
                 prev = obj;
                 obj = obj.calculateloadflow;
             end
         end
+        function obj = solveloadflow(obj,desirederror)
+            runs = 1;
+            prev = obj;
+            obj = solveloadflowworker(obj,desirederror);
+            while obj.error(prev)>(100-desirederror)/100  || ~isfinite(obj.error(prev)) || obj.error(prev)==0
+               runs = runs + 1;
+               prev = obj;
+               obj = solveloadflowworker(obj,desirederror);
+               prev = obj;
+               obj = solveloadflowworker(obj,desirederror);
+               prev = obj;
+               obj = solveloadflowworker(obj,desirederror);
+               if runs>=200
+                   error('System is not stable!');
+               end
+            end
+        end
+            
         function displaysystembusses(obj,runs)
             s = sprintf('After %d Runs:',obj.runnum);
             if runs==1
@@ -109,58 +129,18 @@ classdef powersystem
                 disp(s);
             end
         end
-        function obj = calculateloadflowcompensated(obj,solvedsys)
-            obj.runnum = obj.runnum + 1;
-            for b = 1:length(obj.systembusses)
-                switch obj.systembusses(b).type
-                    case 'PV'
-                        I = Iarray(obj,0);
-                        obj.systembusses(b).Q = obj.systembusses(b).Qorig - imag(conj(obj.systembusses(b).V)*I(b,1));
-                        I = Iarray(obj,b);
-                        obj.systembusses(b).V = abs(obj.systembusses(b).V)*exp(1i*angle(1/obj.Ybus(b,b)*((obj.systembusses(b).P-1i*obj.systembusses(b).Q)/conj(obj.systembusses(b).V)-I(b,1))));
-                    case 'PQ'
-                        if abs(solvedsys.systembusses(b).V)<.96
-                            obj.systembusses(b).VARCompensated = 1;
-                            I = Iarraypick(solvedsys,b,.99);
-                            NewQ = (-solvedsys.systembusses(b).Q - real(((1*exp(1i*angle(solvedsys.systembusses(b).V))*solvedsys.Ybus(b,b)+I(b,1))*conj(solvedsys.systembusses(b).V)-solvedsys.systembusses(b).P)/(-1i)));
-                            obj.systembusses(b).Q = obj.systembusses(b).Q - obj.systembusses(b).VARComp + NewQ;
-                            obj.systembusses(b).VARComp = NewQ;
-                        end
-                        I = Iarray(obj,b);
-                        obj.systembusses(b).V = (1/obj.Ybus(b,b)*((obj.systembusses(b).P-(1i*(obj.systembusses(b).Q)))/conj(obj.systembusses(b).V)-I(b,1)));
-                    case 'Ref'
-                        I = Iarray(obj,-1);
-                        S = conj(obj.systembusses(b).V)*I(b,1);
-                        obj.systembusses(b).P = real(S);
-                        obj.systembusses(b).Q = imag(S);
-                end
-            end
-        end
+
         function obj = solveloadflowcompensated(obj,desirederror)
-            prev = obj;
-            obj = obj.calculateloadflow;
-            prev = obj;
-            obj = obj.calculateloadflow;
-            while obj.error(prev)*100.>(100.-abs(desirederror))
-                prev = obj;
-                obj = obj.calculateloadflow;
-            end
-            solvedregular = obj;
-            prev = obj;
-            obj = obj.calculateloadflowcompensated(solvedregular);
-            prev = obj;
-            obj = obj.calculateloadflowcompensated(solvedregular);
-            while obj.error(prev)*100.>(100.-abs(desirederror)) || obj.minvoltage<.96
-                prev = obj;
-                obj = obj.calculateloadflowcompensated(prev);
-            end
-            prev = obj;
-            obj = obj.calculateloadflow;
-            prev = obj;
-            obj = obj.calculateloadflow;
-            while obj.error(prev)*100.>(100.-abs(desirederror))
-                prev = obj;
-                obj = obj.calculateloadflow;
+            obj = obj.solveloadflow(desirederror);
+            while obj.minvoltage<.96
+                for b = 1:length(obj.systembusses)
+                    if ((abs(obj.systembusses(b).V)<.96)&&(strcmp(obj.systembusses(b).type,'PQ')))
+                        obj.systembusses(b).VARCompensated = 1;
+                        obj.systembusses(b).VARComp = obj.systembusses(b).VARComp + .05;
+                        obj.systembusses(b).Q = obj.systembusses(b).Q + .05;
+                    end
+                end
+                obj = obj.solveloadflow(desirederror);
             end
         end
         function obj = copyVARCompensators(obj,compd)
