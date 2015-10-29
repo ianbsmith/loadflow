@@ -31,7 +31,7 @@ classdef powersystem
                 switch obj.systembusses(b).type
                     case 'PV'
                         I = Iarray(obj,0);
-                        obj.systembusses(b).Q = -imag(conj(obj.systembusses(b).V)*I(b,1));
+                        obj.systembusses(b).Q = obj.systembusses(b).Qorig -imag(conj(obj.systembusses(b).V)*I(b,1));
                         I = Iarray(obj,b);
                         obj.systembusses(b).V = abs(obj.systembusses(b).V)*exp(1i*angle(1/obj.Ybus(b,b)*((obj.systembusses(b).P-1i*obj.systembusses(b).Q)/conj(obj.systembusses(b).V)-I(b,1))));
                     case 'PQ'
@@ -95,7 +95,7 @@ classdef powersystem
                 switch obj.systembusses(b).type
                     case 'PV'
                         I = Iarray(obj,0);
-                        obj.systembusses(b).Q = -imag(conj(obj.systembusses(b).V)*I(b,1));
+                        obj.systembusses(b).Q = obj.systembusses(b).Qorig - imag(conj(obj.systembusses(b).V)*I(b,1));
                         I = Iarray(obj,b);
                         obj.systembusses(b).V = abs(obj.systembusses(b).V)*exp(1i*angle(1/obj.Ybus(b,b)*((obj.systembusses(b).P-1i*obj.systembusses(b).Q)/conj(obj.systembusses(b).V)-I(b,1))));
                     case 'PQ'
