@@ -10,12 +10,14 @@ classdef powerTL
         Yend;
         FromBus;
         ToBus;
+        Type;
     end
     
     methods
-        function obj=powerTL(InFromBus,InToBus,InRpu,InXpu,InCCurrent)
+        function obj=powerTL(InFromBus,InToBus,InType,InRpu,InXpu,InCCurrent)
             obj.FromBus = InFromBus;
             obj.ToBus = InToBus;
+            obj.Type = InType;
             obj.Rpu = InRpu;
             obj.Xpu = InXpu;
             obj.CCurrent = InCCurrent;

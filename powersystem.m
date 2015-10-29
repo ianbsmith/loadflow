@@ -25,7 +25,7 @@ classdef powersystem
                 obj.Ybus(obj.systemTLs(i).FromBus,obj.systemTLs(i).FromBus) = obj.Ybus(obj.systemTLs(i).FromBus,obj.systemTLs(i).FromBus) + (obj.systemTLs(i).Y);
             end
         end
-        function obj = calculate(obj)
+        function obj = calculateloadflow(obj)
             obj.runnum = obj.runnum + 1;
             for b = 1:length(obj.systembusses)
                 switch obj.systembusses(b).type
@@ -58,22 +58,42 @@ classdef powersystem
                 end
             end
         end
+        function I = Iarraypick(obj,except,selectedvoltage)
+            I = zeros(length(obj.systembusses),1);
+            for k = 1:length(obj.systembusses)
+                for n = 1:length(obj.systembusses)
+                    switch except==n
+                        case 1
+                            I(k,1) = I(k,1) + 0;
+                        otherwise
+                            I(k,1) = I(k,1) + obj.Ybus(k,n)*selectedvoltage;
+                    end
+                end
+            end
+        end
         function maxerror = error(obj,prev)
             error = zeros(2*length(obj.systembusses),1);
             for b = 1:length(obj.systembusses)
                 error(b) = (abs(obj.systembusses(b).V) - abs(prev.systembusses(b).V))/abs(prev.systembusses(b).V);
                 error(b+1) = (angle(obj.systembusses(b).V) - angle(prev.systembusses(b).V))/angle(prev.systembusses(b).V);
             end
-            maxerror = max(error);
-        end       
-        function obj = solve(obj,desirederror)
+            maxerror = abs(max(error));
+        end
+        function minvoltage = minvoltage(obj)
+            voltage = zeros(length(obj.systembusses),1);
+            for b = 1:length(obj.systembusses)
+                voltage(b) = abs(obj.systembusses(b).V);
+            end
+            minvoltage = min(voltage);
+        end 
+        function obj = solveloadflow(obj,desirederror)
             prev = obj;
-            obj = obj.calculate;
+            obj = obj.calculateloadflow;
             prev = obj;
-            obj = obj.calculate;
+            obj = obj.calculateloadflow;
             while obj.error(prev)*100.>(100.-abs(desirederror))
                 prev = obj;
-                obj = obj.calculate;
+                obj = obj.calculateloadflow;
             end
         end
         function displaysystembusses(obj,runs)
@@ -89,7 +109,7 @@ classdef powersystem
                 disp(s);
             end
         end
-        function obj = calculatecompensated(obj,solvedsys)
+        function obj = calculateloadflowcompensated(obj,solvedsys)
             obj.runnum = obj.runnum + 1;
             for b = 1:length(obj.systembusses)
                 switch obj.systembusses(b).type
@@ -101,12 +121,10 @@ classdef powersystem
                     case 'PQ'
                         if abs(solvedsys.systembusses(b).V)<.96
                             obj.systembusses(b).VARCompensated = 1;
-                            switch obj.systembusses(b).Q<0
-                                case 1
-                                    NewQ = -(obj.systembusses(b).Q-obj.systembusses(b).VARComp)*.99;
-                                    obj.systembusses(b).Q = obj.systembusses(b).Q - obj.systembusses(b).VARComp + NewQ;
-                                    obj.systembusses(b).VARComp = NewQ;
-                            end
+                            I = Iarraypick(solvedsys,b,.99);
+                            NewQ = (-solvedsys.systembusses(b).Q - real(((1*exp(1i*angle(solvedsys.systembusses(b).V))*solvedsys.Ybus(b,b)+I(b,1))*conj(solvedsys.systembusses(b).V)-solvedsys.systembusses(b).P)/(-1i)));
+                            obj.systembusses(b).Q = obj.systembusses(b).Q - obj.systembusses(b).VARComp + NewQ;
+                            obj.systembusses(b).VARComp = NewQ;
                         end
                         I = Iarray(obj,b);
                         obj.systembusses(b).V = (1/obj.Ybus(b,b)*((obj.systembusses(b).P-(1i*(obj.systembusses(b).Q)))/conj(obj.systembusses(b).V)-I(b,1)));
@@ -118,31 +136,38 @@ classdef powersystem
                 end
             end
         end
-        function obj = solvecompensated(obj,desirederror)
+        function obj = solveloadflowcompensated(obj,desirederror)
             prev = obj;
-            obj = obj.calculate;
+            obj = obj.calculateloadflow;
             prev = obj;
-            obj = obj.calculate;
+            obj = obj.calculateloadflow;
             while obj.error(prev)*100.>(100.-abs(desirederror))
                 prev = obj;
-                obj = obj.calculate;
+                obj = obj.calculateloadflow;
             end
             solvedregular = obj;
             prev = obj;
-            obj = obj.calculatecompensated(solvedregular);
+            obj = obj.calculateloadflowcompensated(solvedregular);
             prev = obj;
-            obj = obj.calculatecompensated(solvedregular);
-            while obj.error(prev)*100.>(100.-abs(desirederror))
+            obj = obj.calculateloadflowcompensated(solvedregular);
+            while obj.error(prev)*100.>(100.-abs(desirederror)) || obj.minvoltage<.96
                 prev = obj;
-                obj = obj.calculatecompensated(solvedregular);
+                obj = obj.calculateloadflowcompensated(prev);
             end
             prev = obj;
-            obj = obj.calculate;
+            obj = obj.calculateloadflow;
             prev = obj;
-            obj = obj.calculate;
+            obj = obj.calculateloadflow;
             while obj.error(prev)*100.>(100.-abs(desirederror))
                 prev = obj;
-                obj = obj.calculate;
+                obj = obj.calculateloadflow;
+            end
+        end
+        function obj = copyVARCompensators(obj,compd)
+            for i=1:length(obj.systembusses)
+                obj.systembusses(i).VARComp = compd.systembusses(i).VARComp;
+                obj.systembusses(i).VARCompensated = compd.systembusses(i).VARCompensated;
+                obj.systembusses(i).Q = compd.systembusses(i).Q;
             end
         end
     end
