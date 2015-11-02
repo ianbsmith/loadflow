@@ -10,7 +10,6 @@ classdef powerbus
         VARCompensated;
         VARComp;
         Qorig;
-        Porig;
     end
     
     methods
@@ -20,12 +19,11 @@ classdef powerbus
                     obj.V = 1;
             end
         end
-        function obj = powerbus(InType,InV,InP,InQ)
+        function obj = powerbus(InType,,InVInP,InQ)
             obj.type = InType;
             obj.P = InP;
             obj.Q = InQ;
             obj.Qorig = InQ;
-            obj.Porig = InP;
             obj.V = InV;
             obj = obj.initialguess;
             obj.VARCompensated = 0;

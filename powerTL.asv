@@ -29,7 +29,8 @@ classdef powerTL
                 case 'Short'
                     obj.Yend = 0; %per end
                 otherwise
-                    obj.Yend = 1i*obj.CMVAR/2;
+                    syms end
+                    obj.Yend = vpasolve(obj.CMVAR==imag(1*(j*end+1/(1/(j*Ye)+1/(.1+j*.6)))),Ye)
             end
         end
             

@@ -1,8 +1,11 @@
 clear all;
 close all;
-mybusses = [powerbus('Ref',0,0,1.04),powerbus('PV',1.2,0,1.02),powerbus('PQ',-1.5,-1,0)];
-myTLs = [powerTL(1,2,'Short',0,.6,0),powerTL(1,3,'Short',0,.2,0),powerTL(2,3,'Short',0,.25,0)];
+
+mybusses = [powerbus('Ref',1.04,0,0),powerbus('PV',1.02,1.2,0),powerbus('PQ',1,-1.5,0)];
+myTLs = [powerTL(1,2,'Med',.2,.5,4/100),powerTL(1,3,'Med',.2,.6,4/100),powerTL(2,3,'Med',.2,.3,4/100)];
 mysystem = powersystem(mybusses,myTLs);
 
-mysystem = mysystem.solveloadflow(99.999999);
-mysystem.displaysystembusses(1);
+mysystem2 = mysystem.solveloadflowcompensated(99.999999999);
+mysystem2.displaysystembusses(1);
+mysystem2 = mysystem2.displayflows;
+mysystem2 = mysystem2.displaysystemflows;

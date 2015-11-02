@@ -1,0 +1,20 @@
+clear all;
+close all;
+
+clear all;
+close all;
+
+mybusses = [powerbus('Ref',1.04,0,0),powerbus('PQ',1,-1.15,-.5),powerbus('PV',1.02,1.8-.7,0),powerbus('PQ',1,-.7,-.3),powerbus('PQ',1,-.85,-.4)];
+myTLs = [powerTL(1,2,'Med',0,.168,4.1/100),powerTL(1,5,'Med',0,.126,3.1/100),powerTL(2,3,'Med',0,.126,3.1/100),powerTL(3,4,'Med',0,.336,8.2/100),powerTL(3,5,'Med',.053,.210,5.1/100),powerTL(4,5,'Med',.063,.252,6.1/100)];
+orig = powersystem(mybusses,myTLs);
+
+error = 99.999999;
+basic = orig.solveloadflow(error,0);
+basic.displaysystembusses(1);
+basic = basic.displayflows;
+basic = basic.displaysystemflows;
+
+compd = orig.solveloadflowcompensated(error);
+compd.displaysystembusses(1);
+compd = compd.displayflows;
+compd = compd.displaysystemflows;
